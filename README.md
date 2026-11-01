@@ -3,9 +3,10 @@
 DeepSeek Harness 的桌面自动化插件 —— **macOS 适配版**。
 
 - 包名：`@yeye667/dsh-pilot-mac`
-- 版本：`0.7.0-mac.2`
+- 版本：`0.7.0-mac.3`
 - 上游（Windows 原版）：[momasiku/dsh-pilot](https://github.com/momasiku/dsh-pilot)
-- 完整说明：[README-macOS.md](README-macOS.md)；上游原文档：[README-upstream.md](README-upstream.md)
+- **给使用者的安装说明（可直接转发）**：[INSTALL.md](INSTALL.md)
+- 技术说明：[README-macOS.md](README-macOS.md)；上游原文档：[README-upstream.md](README-upstream.md)
 
 给模型装上眼睛和手：`screen_view` 截图、`desktop_control` 点/拖/滚/打字、`desktop_sequence` 批量执行。
 Windows 上仍走 PowerShell + Win32/UIA；macOS 上换成随包编译的 Swift 助手（CoreGraphics + Accessibility API）。
@@ -33,7 +34,7 @@ CI 定义在 [`.github/workflows/macos.yml`](.github/workflows/macos.yml)，push
 dsh plugin remove @momasiku/dsh-pilot
 
 # 2) 从 tarball 安装（不要用目录，理由见 README-macOS.md）
-dsh plugin add ./yeye667-dsh-pilot-mac-0.7.0-mac.2.tgz
+dsh plugin add ./yeye667-dsh-pilot-mac-0.7.0-mac.3.tgz
 ```
 
 然后到「系统设置 → 隐私与安全性」给**运行 Harness 的那个 App** 开
