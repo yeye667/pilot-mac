@@ -67,14 +67,30 @@ jobs:
 
       - name: Typecheck every Swift source against the real SDK
         working-directory: ${{ env.PKG }}
+        shell: bash
         run: |
+          # The diagnostics are copied into the job summary as well as the step log.
+          # Step logs need an authenticated download; the summary is readable from the
+          # check-runs API, so a failing build can be diagnosed without opening a
+          # browser — which is what makes this workflow usable from a script.
+          set +e
+          log="$RUNNER_TEMP/typecheck.log"
           xcrun swiftc -typecheck -parse-as-library \
             lib/darwin/Pilot.swift \
             lib/darwin/PilotWindows.swift \
             lib/darwin/PilotInput.swift \
             lib/darwin/PilotCapture.swift \
             lib/darwin/PilotAction.swift \
-            lib/darwin/PilotRuntime.swift
+            lib/darwin/PilotRuntime.swift 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          {
+            echo '### swiftc -typecheck diagnostics'
+            echo '```'
+            head -c 60000 "$log" 2>/dev/null || echo '(no diagnostics captured)'
+            echo '```'
+            echo "exit status: $status"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
       - name: Build the helper
         working-directory: ${{ env.PKG }}
