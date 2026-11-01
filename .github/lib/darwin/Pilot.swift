@@ -404,7 +404,9 @@ func drawLabel(_ context: CGContext, text: String, x: CGFloat, topY: CGFloat, si
 	var leading: CGFloat = 0
 	_ = CTLineGetTypographicBounds(line, &ascent, &descent, &leading)
 	context.textMatrix = .identity
-	context.textPosition = CGPoint(x: x, y: context.height - topY - ascent)
+	// CGContext.height is an Int; mixing it with the CGFloat line metrics does not
+	// type-check, and silently truncating it would be worse than either.
+	context.textPosition = CGPoint(x: x, y: CGFloat(context.height) - topY - ascent)
 	CTLineDraw(line, context)
 }
 
