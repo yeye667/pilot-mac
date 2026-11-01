@@ -14,7 +14,7 @@
 # macOS the upstream row cannot work at all, because it needs powershell.exe.
 - insert:
     - id: pilot-mac
-      name: '@momasiku/dsh-pilot-mac'
+      name: '@yeye667/dsh-pilot-mac'
       config:
         captureRetention: 30
         timeoutMs: 20000
