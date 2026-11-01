@@ -153,7 +153,7 @@ func runProbe(_ params: Params) throws -> [String: Any] {
 		} else {
 			for pair in plan.displays {
 				let pixelRect = pair.1
-				guard let shot = captureDisplay(pair.0.id) else { continue }
+				guard let shot = captureDisplay(pair.0) else { continue }
 				let target = CGRect(x: pixelRect.minX - plan.canvas.minX,
 				                    y: pixelRect.minY - plan.canvas.minY,
 				                    width: pixelRect.width,
