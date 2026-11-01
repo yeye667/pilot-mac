@@ -1,6 +1,6 @@
 # dsh-pilot on macOS
 
-`@momasiku/dsh-pilot-mac` 是 [`@momasiku/dsh-pilot`](https://github.com/momasiku/dsh-pilot) 的 macOS 分支：
+`@yeye667/dsh-pilot-mac` 是 [`@momasiku/dsh-pilot`](https://github.com/momasiku/dsh-pilot) 的 macOS 分支：
 同一套工具名（`screen_view` / `desktop_control` / `desktop_sequence`）、同一套参数、同一套像素契约，
 底下换成了 macOS 自己的东西。
 
@@ -30,7 +30,7 @@
 dsh plugin remove @momasiku/dsh-pilot        # 或在 GUI 插件面板里禁用 pilot 行
 
 # 2) 安装本包：用 tarball，不要用目录
-dsh plugin add /path/to/momasiku-dsh-pilot-mac-0.7.0-mac.1.tgz
+dsh plugin add /path/to/yeye667-dsh-pilot-mac-0.7.0-mac.2.tgz
 ```
 
 **不要用目录安装（`dsh plugin add /path/to/dsh-pilot-mac`）。** 两条实测过的原因：
@@ -158,7 +158,30 @@ DSH_PILOT_MAC_BIN_PREFIX="…"               # 测试钩子：给帮助进程加
 DSH_PILOT_FORCE_PLATFORM=darwin            # 在非 mac 上走 darwin 分支（只用于跑测试）
 ```
 
-## 6. 代码地图
+## 6. 真 SDK 实测记录（GitHub Actions，macOS runner）
+
+`.github/workflows/macos.yml` 在 GitHub 托管的 macOS runner 上跑四件事：
+协议门禁 → `swiftc -typecheck`（真 SDK）→ `swiftc -O` 编译 → `pilot-mac selftest`（无头）。
+
+当前状态：**全绿**。约 21 秒，步骤依次为
+`Locate the package / Toolchain / Protocol gate (23/23) / Typecheck / Build / Selftest / Publish the binary`。
+
+这一跑抓出了三个**只有在真 SDK 上才会暴露**的问题，都已修复并提交：
+
+| 报错 | 原因 | 修法 |
+|---|---|---|
+| `Pilot.swift:407: error: cannot convert 'Int' to 'CGFloat'` | `CGContext.height` 是 `Int`，和 `CTLine` 的 `CGFloat` 度量混算 | `CGPoint(x: x, y: CGFloat(context.height) - topY - ascent)` |
+| `Pilot.swift:388: error: 'CGWindowListCreateImage' is unavailable in macOS: use ScreenCaptureKit` | macOS 26 SDK 把它从 deprecated 升为 **unavailable** | 窗口截图改走 `screencapture -x -o -l<windowID>` |
+| `Pilot.swift:383: error: 'CGDisplayCreateImage' is unavailable in macOS: use ScreenCaptureKit` | 同上，整屏截图 API 也被禁 | 抽出 `captureRect(_:)` 走 `screencapture -x -R<x,y,w,h>`；`captureDisplay` 传 `DisplayInfo.pointRect` |
+
+两次改动都只换了「怎么拿到像素」，没动坐标契约：`screencapture` 的 `-R` 收 points、输出原生像素 PNG，
+和 `captureScale` 那套网格完全一致。`selftest` 在无头 runner 上返回
+`screenRecording: false` / `accessibility: false` 属于预期。
+
+runner 产出的二进制以 artifact 形式发布（`pilot-mac-<arch>`），可以直接下载到 Mac 上，
+用 `DSH_PILOT_MAC_BIN=/path/to/pilot-mac` 跳过本机编译。
+
+## 7. 代码地图
 
 ```
 lib/index.js                 平台无关：三个工具、像素契约、warm worker、接管环、结果投影
