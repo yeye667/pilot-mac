@@ -372,15 +372,37 @@ func writePNG(_ image: CGImage, to path: String) throws {
 	}
 }
 
-/// One display's pixels at native resolution. Containing windows are included, so
+/// Capture a rectangle of the desktop, given in global display points.
+///
+/// `CGDisplayCreateImage` and `CGWindowListCreateImage` are both *unavailable* — not
+/// merely deprecated — in the macOS 26 SDK, which points at ScreenCaptureKit. That
+/// framework is async and wants a configured stream before the first frame, which
+/// fits badly inside a one-shot helper serving a single action. `screencapture` is
+/// the synchronous equivalent Apple ships with the OS: `-x` keeps it silent, `-R`
+/// takes a rect in points, and the PNG it writes is at native pixel resolution — the
+/// exact grid this program works on. It honours the same Screen Recording
+/// permission and fails cleanly when that permission is missing.
+func captureRect(_ rect: CGRect) -> CGImage? {
+	let path = FileManager.default.temporaryDirectory
+		.appendingPathComponent("pilot-shot-\(UUID().uuidString).png").path
+	defer { try? FileManager.default.removeItem(atPath: path) }
+
+	let process = Process()
+	process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+	let region = "\(Int(rect.minX.rounded())),\(Int(rect.minY.rounded())),\(Int(rect.width.rounded())),\(Int(rect.height.rounded()))"
+	process.arguments = ["-x", "-R\(region)", path]
+	do { try process.run() } catch { return nil }
+	process.waitUntilExit()
+	guard process.terminationStatus == 0 else { return nil }
+	guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
+	return CGImageSourceCreateImageAtIndex(source, 0, nil)
+}
+
+/// One display's pixels, at native resolution. Containing windows are included, so
 /// the caller mutes the takeover ring before capturing (index.js does exactly that
 /// on both platforms).
-func captureDisplay(_ id: CGDirectDisplayID) -> CGImage? {
-	// CGDisplayCreateImage is deprecated in favour of ScreenCaptureKit, which needs an
-	// async stream and a run loop even for one frame. This synchronous call is still
-	// accurate, still honours the same TCC permission, and still returns nil rather
-	// than a black frame when the permission is missing.
-	return CGDisplayCreateImage(id)
+func captureDisplay(_ display: DisplayInfo) -> CGImage? {
+	captureRect(display.pointRect)
 }
 
 /// One window's pixels at native resolution, offscreen or occluded included.
