@@ -1,0 +1,21 @@
+# Bundle patch for dsh-pilot-mac.
+#
+# `dsh plugin add` (from this directory, or from npm) applies this file as a layer
+# and inserts the single plugin row below into the composed profile configuration.
+# Shipping the row here, instead of hand-writing it into the profile's own
+# cordis.patch.yml, is what makes the plugin a first-class member of the bundle
+# layer: the plugin manager then knows which entry id belongs to this package, and
+# the row survives the profile patch layer being rewritten.
+#
+# The row id is `pilot-mac` and not `pilot`: the upstream Windows-only package
+# inserts `pilot`, and two rows may not share an id, so a profile that still
+# carries the upstream row composes cleanly and the operator decides which one to
+# keep. Both register the same three tool names, so enable only one at a time — on
+# macOS the upstream row cannot work at all, because it needs powershell.exe.
+- insert:
+    - id: pilot-mac
+      name: '@momasiku/dsh-pilot-mac'
+      config:
+        captureRetention: 30
+        timeoutMs: 20000
+        settleMs: 750

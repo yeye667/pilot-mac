@@ -1,0 +1,63 @@
+{
+  "name": "@momasiku/dsh-pilot-mac",
+  "version": "0.7.0-mac.1",
+  "description": "DeepSeek Harness 的桌面自动化：给整台机器装上眼睛和手。Windows 走 PowerShell + Win32/UIA，macOS 走内置的 Swift 助手（CoreGraphics + Accessibility API）。可以做人能做的任何事，包括且不仅限于 CAD，WPS，浏览器操作，发微信。",
+  "license": "MIT",
+  "author": "momasiku",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/scripts",
+    "lib/darwin",
+    "tools",
+    "cordis.patch.yml",
+    "README.md",
+    "README-macOS.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "computer-use",
+    "desktop-automation",
+    "screenshot",
+    "vision",
+    "windows",
+    "macos",
+    "darwin"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-attachment": ">=0.1.5-rc.2 <0.2.0 || >=0.2.0-rc.1 <0.3.0-0 || >=0.2.1-0 <0.3.0-0",
+    "@deepseek-ai/dsh-llm": ">=0.1.5-rc.2 <0.2.0 || >=0.2.0-rc.1 <0.3.0-0 || >=0.2.1-0 <0.3.0-0",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.2.0 || >=0.2.0-rc.1 <0.3.0-0 || >=0.2.1-0 <0.3.0-0"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/momasiku/dsh-pilot.git"
+  },
+  "homepage": "https://github.com/momasiku/dsh-pilot#readme",
+  "bugs": {
+    "url": "https://github.com/momasiku/dsh-pilot/issues"
+  }
+}
