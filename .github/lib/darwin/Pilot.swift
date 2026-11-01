@@ -384,8 +384,27 @@ func captureDisplay(_ id: CGDirectDisplayID) -> CGImage? {
 }
 
 /// One window's pixels at native resolution, offscreen or occluded included.
+///
+/// `CGWindowListCreateImage` is *unavailable* — not merely deprecated — in the
+/// macOS 26 SDK, which points at ScreenCaptureKit. ScreenCaptureKit is async and
+/// wants a stream configured before the first frame, which fits badly inside a
+/// one-shot helper that may be serving a single action. `screencapture -l` reaches
+/// the same window pixels through the same Screen Recording permission, is
+/// synchronous, and writes a PNG this process can decode.
 func captureWindow(_ windowID: CGWindowID) -> CGImage? {
-	CGWindowListCreateImage(.null, .optionIncludingWindow, windowID, [.boundsIgnoreFraming, .bestResolution])
+	let path = FileManager.default.temporaryDirectory
+		.appendingPathComponent("pilot-window-\(UUID().uuidString).png").path
+	defer { try? FileManager.default.removeItem(atPath: path) }
+
+	let process = Process()
+	process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+	// -x: silent, -o: no window shadow, -l<id>: that window only.
+	process.arguments = ["-x", "-o", "-l\(windowID)", path]
+	do { try process.run() } catch { return nil }
+	process.waitUntilExit()
+	guard process.terminationStatus == 0 else { return nil }
+	guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
+	return CGImageSourceCreateImageAtIndex(source, 0, nil)
 }
 
 // MARK: - Rulers and the cursor crosshair
