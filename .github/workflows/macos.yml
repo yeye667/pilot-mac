@@ -38,16 +38,21 @@ jobs:
 
       - name: Locate the package
         run: |
-          if [ -d lib/darwin ]; then
-            echo "PKG=." >> "$GITHUB_ENV"
-          elif [ -d dsh-pilot-mac/lib/darwin ]; then
-            echo "PKG=dsh-pilot-mac" >> "$GITHUB_ENV"
-          else
-            echo "cannot find lib/darwin anywhere in this repository" >&2
-            ls -la >&2
-            exit 1
-          fi
-          echo "package root: $(grep '^PKG=' "$GITHUB_ENV")"
+          # The package root is wherever lib/darwin lives. "." is the intended
+          # layout; ".github" is tolerated because a first upload landed the whole
+          # package inside .github/ — the workflow and the sources are unaffected by
+          # where they sit, so the typecheck still means exactly the same thing.
+          for candidate in . .github dsh-pilot-mac .github/dsh-pilot-mac; do
+            if [ -d "$candidate/lib/darwin" ]; then
+              echo "PKG=$candidate" >> "$GITHUB_ENV"
+              echo "package root: $candidate"
+              exit 0
+            fi
+          done
+          echo "cannot find lib/darwin anywhere in this repository" >&2
+          find . -name 'Pilot.swift' -not -path '*/node_modules/*' >&2
+          ls -la >&2
+          exit 1
 
       - name: Toolchain
         working-directory: ${{ env.PKG }}
