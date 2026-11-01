@@ -1,1 +1,91 @@
+# Typecheck, build and smoke-run the macOS helper on a GitHub-hosted macOS runner.
+#
+# This is the one thing a Windows (or Linux) machine cannot answer about this
+# plugin: whether `swiftc` accepts the CoreGraphics / AppKit / Accessibility calls
+# in lib/darwin/*.swift. The runner has the real macOS SDK, so `swiftc -typecheck`
+# settles every signature, availability and optionality question in one run.
+#
+# Layout-agnostic: it works whether the repository root is this package or a parent
+# directory that contains dsh-pilot-mac/ (the "Locate the package" step decides).
+#
+# What this cannot check: real screen capture, click accuracy, and the two TCC
+# permissions (Screen Recording / Accessibility). The runner is headless, so
+# `selftest` is expected to report `screenRecording: false` and
+# `accessibility: false` — that is the correct outcome here, not a failure.
 
+name: macOS helper
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: typecheck + build + selftest
+    # macos-latest is the safe label; pin macos-14 or macos-15 for a specific SDK,
+    # or macos-13 for an Intel build.
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Locate the package
+        run: |
+          if [ -d lib/darwin ]; then
+            echo "PKG=." >> "$GITHUB_ENV"
+          elif [ -d dsh-pilot-mac/lib/darwin ]; then
+            echo "PKG=dsh-pilot-mac" >> "$GITHUB_ENV"
+          else
+            echo "cannot find lib/darwin anywhere in this repository" >&2
+            ls -la >&2
+            exit 1
+          fi
+          echo "package root: $(grep '^PKG=' "$GITHUB_ENV")"
+
+      - name: Toolchain
+        working-directory: ${{ env.PKG }}
+        run: |
+          sw_vers
+          xcrun -f swiftc
+          xcrun swiftc --version
+
+      - name: Protocol gate (real lib/index.js against the stub helper)
+        working-directory: ${{ env.PKG }}
+        run: node tools/test-protocol.mjs
+
+      - name: Typecheck every Swift source against the real SDK
+        working-directory: ${{ env.PKG }}
+        run: |
+          xcrun swiftc -typecheck -parse-as-library \
+            lib/darwin/Pilot.swift \
+            lib/darwin/PilotWindows.swift \
+            lib/darwin/PilotInput.swift \
+            lib/darwin/PilotCapture.swift \
+            lib/darwin/PilotAction.swift \
+            lib/darwin/PilotRuntime.swift
+
+      - name: Build the helper
+        working-directory: ${{ env.PKG }}
+        run: |
+          mkdir -p build
+          xcrun swiftc -O -parse-as-library -module-name Pilot -o build/pilot-mac lib/darwin/*.swift
+          ls -lh build/pilot-mac
+
+      - name: Selftest (headless runner, both permissions expected false)
+        working-directory: ${{ env.PKG }}
+        run: |
+          ./build/pilot-mac selftest | tee build/selftest.json
+
+      - name: Publish the binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot-mac-${{ runner.arch }}
+          path: ${{ env.PKG }}/build/pilot-mac
+          if-no-files-found: error
