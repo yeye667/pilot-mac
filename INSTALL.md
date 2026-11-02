@@ -11,7 +11,7 @@
 打开「终端」（访达 → 实用工具 → 终端），粘贴这一行并回车：
 
 ```bash
-curl -L -o pilot.tgz https://github.com/yeye667/1/releases/download/v0.7.0-mac.3/yeye667-dsh-pilot-mac-0.7.0-mac.3.tgz
+curl -L -o pilot.tgz https://github.com/yeye667/pilot-mac/releases/download/v0.7.0-mac.4/yeye667-dsh-pilot-mac-0.7.0-mac.4.tgz
 ```
 
 不想用终端也可以：把上面那个 `https://...` 地址粘到浏览器地址栏，下载完成后把文件名改成 `pilot.tgz`。
