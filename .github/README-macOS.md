@@ -173,6 +173,7 @@ DSH_PILOT_FORCE_PLATFORM=darwin            # 在非 mac 上走 darwin 分支（�
 | `Pilot.swift:407: error: cannot convert 'Int' to 'CGFloat'` | `CGContext.height` 是 `Int`，和 `CTLine` 的 `CGFloat` 度量混算 | `CGPoint(x: x, y: CGFloat(context.height) - topY - ascent)` |
 | `Pilot.swift:388: error: 'CGWindowListCreateImage' is unavailable in macOS: use ScreenCaptureKit` | macOS 26 SDK 把它从 deprecated 升为 **unavailable** | 窗口截图改走 `screencapture -x -o -l<windowID>` |
 | `Pilot.swift:383: error: 'CGDisplayCreateImage' is unavailable in macOS: use ScreenCaptureKit` | 同上，整屏截图 API 也被禁 | 抽出 `captureRect(_:)` 走 `screencapture -x -R<x,y,w,h>`；`captureDisplay` 传 `DisplayInfo.pointRect` |
+| 截图全黑（只有标尺和十字，无桌面内容） | `CGImageSourceCreateImageAtIndex` 返回的是**懒解码**图像，而 `defer` 在函数返回时已删掉临时 PNG；CoreGraphics 把缺失的源画成黑底而不是报错 | 抽出 `decodeCapturedPNG`，用 `kCGImageSourceShouldCacheImmediately` 在文件还在时立刻解码。macOS 27/ImageIO 实测：留文件 → 5.4 MB 正常帧；删文件 → 150 KB 纯黑 |
 
 两次改动都只换了「怎么拿到像素」，没动坐标契约：`screencapture` 的 `-R` 收 points、输出原生像素 PNG，
 和 `captureScale` 那套网格完全一致。`selftest` 在无头 runner 上返回
