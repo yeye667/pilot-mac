@@ -1,6 +1,6 @@
 {
   "name": "@yeye667/dsh-pilot-mac",
-  "version": "0.7.0-mac.3",
+  "version": "0.7.0-mac.4",
   "description": "DeepSeek Harness 的桌面自动化（macOS 适配版）：给整台机器装上眼睛和手。macOS 走内置的 Swift 助手（CoreGraphics + Accessibility API），Windows 仍走 PowerShell + Win32/UIA。可以做人能做的任何事，包括且不仅限于 CAD，WPS，浏览器操作，发微信。",
   "license": "MIT",
   "author": "yeye667",
