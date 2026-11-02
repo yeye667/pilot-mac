@@ -55,10 +55,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yeye667/1.git"
+    "url": "git+https://github.com/yeye667/pilot-mac.git"
   },
-  "homepage": "https://github.com/yeye667/1#readme",
+  "homepage": "https://github.com/yeye667/pilot-mac#readme",
   "bugs": {
-    "url": "https://github.com/yeye667/1/issues"
+    "url": "https://github.com/yeye667/pilot-mac/issues"
   }
 }
