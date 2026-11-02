@@ -372,6 +372,25 @@ func writePNG(_ image: CGImage, to path: String) throws {
 	}
 }
 
+/// Decode a PNG that is about to be deleted, fully, before its file goes away.
+///
+/// `CGImageSourceCreateImageAtIndex` hands back a *lazily* decoded image: the pixels
+/// are read from the file the first time something draws it. Both capture paths
+/// delete their temporary PNG on return (`defer`), so a lazy image reaches the caller
+/// with its backing file already gone — and CoreGraphics draws that as an empty black
+/// frame rather than failing, which is exactly the "screenshot is pure black but the
+/// rulers are drawn" symptom. Measured on macOS 27 / ImageIO: keeping the file gave a
+/// 5.4 MB frame with the desktop in it, deleting it gave a 150 KB black one.
+///
+/// `kCGImageSourceShouldCacheImmediately` forces the decode while the file still
+/// exists, so the returned image is self-contained and the deletion is irrelevant.
+func decodeCapturedPNG(_ path: String) -> CGImage? {
+	let url = URL(fileURLWithPath: path) as CFURL
+	guard let source = CGImageSourceCreateWithURL(url, nil) else { return nil }
+	let options = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
+	return CGImageSourceCreateImageAtIndex(source, 0, options)
+}
+
 /// Capture a rectangle of the desktop, given in global display points.
 ///
 /// `CGDisplayCreateImage` and `CGWindowListCreateImage` are both *unavailable* — not
@@ -394,8 +413,7 @@ func captureRect(_ rect: CGRect) -> CGImage? {
 	do { try process.run() } catch { return nil }
 	process.waitUntilExit()
 	guard process.terminationStatus == 0 else { return nil }
-	guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
-	return CGImageSourceCreateImageAtIndex(source, 0, nil)
+	return decodeCapturedPNG(path)
 }
 
 /// One display's pixels, at native resolution. Containing windows are included, so
@@ -425,8 +443,7 @@ func captureWindow(_ windowID: CGWindowID) -> CGImage? {
 	do { try process.run() } catch { return nil }
 	process.waitUntilExit()
 	guard process.terminationStatus == 0 else { return nil }
-	guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
-	return CGImageSourceCreateImageAtIndex(source, 0, nil)
+	return decodeCapturedPNG(path)
 }
 
 // MARK: - Rulers and the cursor crosshair
