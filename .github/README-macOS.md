@@ -30,7 +30,7 @@
 dsh plugin remove @momasiku/dsh-pilot        # 或在 GUI 插件面板里禁用 pilot 行
 
 # 2) 安装本包：用 tarball，不要用目录
-dsh plugin add /path/to/yeye667-dsh-pilot-mac-0.7.0-mac.2.tgz
+dsh plugin add /path/to/yeye667-dsh-pilot-mac-0.7.4-mac.1.tgz
 ```
 
 **不要用目录安装（`dsh plugin add /path/to/dsh-pilot-mac`）。** 两条实测过的原因：
