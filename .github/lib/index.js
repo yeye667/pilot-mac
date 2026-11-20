@@ -123,10 +123,15 @@ async function helperSpawn(kind, paramsPath) {
 
 /** Scratch directory for parameter files and cancel tokens. */
 function scratchDir() {
+	// The directory is the rendezvous between every process running this plugin:
+	// anything that writes show.txt raises the ring of whatever overlay is polling
+	// it. A test harness sets DSH_PILOT_SCRATCH_DIR so its batched clicks cannot
+	// paint the ring of a session somebody is watching.
+	//
 	// tmpdir() reads TEMP/TMP on Windows and TMPDIR on macOS, which is the one that is
 	// actually set there. The old TEMP/TMP chain fell through to the package directory,
 	// which is read-only once the plugin lives inside a profile.
-	const dir = join(tmpdir(), 'dsh-pilot');
+	const dir = process.env.DSH_PILOT_SCRATCH_DIR ?? join(tmpdir(), 'dsh-pilot');
 	mkdirSync(dir, { recursive: true });
 	return dir;
 }
@@ -478,7 +483,12 @@ class ActionWorker {
 				settle: (value) => {
 					if (value.ok === true) finish(resolvePromise, value);
 					else finish(rejectPromise, Object.assign(new Error(String(value.error ?? 'pilot: the action failed')), { cancelled: value.cancelled === true }));
-				}
+				},
+				// The worker can die while this request is in flight (the close handler
+				// rejects through here). Without it that handler called an undefined
+				// function and threw inside an event callback, so the pending request
+				// never settled and the exception escaped to the host.
+				reject: (error) => finish(rejectPromise, error)
 			};
 			const abort = () => {
 				// The worker polls the cancel file between steps, so an
@@ -702,6 +712,28 @@ function overlaySpawnSpec(dir) {
 const TAKEOVER_LINGER_MS = 8000;
 let lingerTimer = null;
 let pendingCancels = [];
+let lingeringShowFile = null;
+
+// The linger timer is unref'd so it never holds a host open. A short-lived process — a
+// one-shot run, a test harness — can therefore exit before it fires, leaving show.txt
+// behind; the overlay lives in its own process and keeps polling, so the ring stays up
+// with nobody left to take it down. Remove it synchronously on the way out.
+process.once('exit', () => {
+	if (lingeringShowFile !== null) {
+		try {
+			rmSync(lingeringShowFile, { force: true });
+		} catch {
+			// Nothing left to clean up.
+		}
+	}
+	for (const stale of pendingCancels) {
+		try {
+			rmSync(stale, { force: true });
+		} catch {
+			// A leftover cancel file is harmless: the token is unique.
+		}
+	}
+});
 
 /**
  * Schedule the ring to go away. The hide is delayed on purpose: hiding at the end of
@@ -718,8 +750,10 @@ function endTakeover(dir, cancelPath, lingerMs) {
 	if (dir === null) return;
 	if (lingerTimer !== null) clearTimeout(lingerTimer);
 	const wait = Number.isFinite(lingerMs) && lingerMs > 0 ? lingerMs : TAKEOVER_LINGER_MS;
+	lingeringShowFile = join(dir, 'show.txt');
 	lingerTimer = setTimeout(() => {
 		lingerTimer = null;
+		lingeringShowFile = null;
 		try {
 			rmSync(join(dir, 'show.txt'), { force: true });
 		} catch {
@@ -1507,26 +1541,39 @@ function stopRequested(cancelPath) {
 function abortableWait(ms, signal, cancelPath) {
 	return new Promise((resolvePromise, rejectPromise) => {
 		let timer;
+		let settled = false;
+		const finish = (fn, value) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			signal?.removeEventListener('abort', onAbort);
+			fn(value);
+		};
 		const deadline = Date.now() + Math.max(0, ms);
 		const tick = () => {
 			if (signal?.aborted) {
-				rejectPromise(new Error('pilot: the batch was cancelled during a wait'));
+				finish(rejectPromise, new Error('pilot: the batch was cancelled during a wait'));
 				return;
 			}
 			if (stopRequested(cancelPath)) {
-				rejectPromise(Object.assign(new Error('pilot: the person pressed Esc and cancelled this batch'), { cancelled: true }));
+				finish(rejectPromise, Object.assign(new Error('pilot: the person pressed Esc and cancelled this batch'), { cancelled: true }));
 				return;
 			}
 			const left = deadline - Date.now();
 			if (left <= 0) {
-				resolvePromise();
+				finish(resolvePromise);
 				return;
 			}
 			timer = setTimeout(tick, Math.min(100, left));
 		};
-		signal?.addEventListener('abort', () => {
-			clearTimeout(timer);
-		}, { once: true });
+		// Settle here instead of only clearing the timer. Clearing the timer was the
+		// only thing this listener did, and the next tick was the only thing that
+		// could ever settle the promise — so an abort left it pending for the rest of
+		// the session and the caller waited on a wait that had already been called off.
+		const onAbort = () => {
+			finish(rejectPromise, Object.assign(new Error('pilot: the batch was cancelled during a wait'), { cancelled: true }));
+		};
+		signal?.addEventListener('abort', onAbort, { once: true });
 		tick();
 	});
 }
